@@ -1,0 +1,17 @@
+{
+  "name": "eventease",
+  "version": "1.0.0",
+  "description": "EventEase - campus event management portal: view events and register with live seat counts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
