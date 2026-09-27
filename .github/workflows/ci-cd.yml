@@ -20,6 +20,7 @@ jobs:
   test:
     name: Lint and test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,6 +45,7 @@ jobs:
     name: Docker build and smoke test
     needs: test               # runs only if the test job succeeded
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,6 +78,7 @@ jobs:
     needs: build              # runs only if the build job succeeded
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Trigger Render deploy hook
         env:
