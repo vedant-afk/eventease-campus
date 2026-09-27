@@ -1,0 +1,90 @@
+# CI/CD pipeline for EventEase
+#
+#   test  (lint + automated tests)
+#     -> build  (Docker image + smoke test)       only if test passed
+#       -> deploy  (Render deploy hook)            only if build passed, only on main
+#
+name: CI/CD
+
+on:
+  push:
+    branches: ['**']      # every push, on any branch
+  pull_request:
+    branches: [main]      # every pull request into main
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------- Stage 1: Continuous Integration ----------------
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Run tests (node:test)
+        run: npm test
+
+  # ---------------- Stage 2: Build the container ----------------
+  build:
+    name: Docker build and smoke test
+    needs: test               # runs only if the test job succeeded
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --build-arg GIT_SHA=${{ github.sha }} -t eventease .
+
+      - name: Start container
+        run: docker run -d -p 3000:3000 --name eventease eventease
+
+      - name: Smoke test (health, home page, API)
+        run: |
+          for i in $(seq 1 15); do
+            curl -fs http://localhost:3000/health > /dev/null && break
+            sleep 2
+          done
+          curl -fsS http://localhost:3000/health | grep '"status":"ok"'
+          curl -fsS http://localhost:3000/health | grep "${GITHUB_SHA::7}"
+          curl -fsS http://localhost:3000/api/events > /dev/null
+          curl -fsS http://localhost:3000/ | grep -q 'EventEase'
+          echo "Container is healthy"
+
+      - name: Show container logs
+        if: always()
+        run: docker logs eventease
+
+  # ---------------- Stage 3: Continuous Deployment ----------------
+  deploy:
+    name: Deploy to Render
+    needs: build              # runs only if the build job succeeded
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK secret is missing. Add it in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          # &ref=<commit> tells Render to deploy exactly the commit that passed the tests
+          curl -fsS -X POST "${RENDER_DEPLOY_HOOK}&ref=${GITHUB_SHA}"
+          echo "Render deploy triggered for commit ${GITHUB_SHA::7}"
