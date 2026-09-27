@@ -157,3 +157,17 @@ test('HTML typed into the form is shown as text, not run', async (t) => {
   assert.doesNotMatch(participants, /<script>alert/);
   assert.match(participants, /&#60;script&#62;/);
 });
+
+test('search shows only matching events', async (t) => {
+  const base = await startServer(t);
+
+  const html = await (await fetch(`${base}/?q=workshop`)).text();
+  assert.match(html, /Photography Workshop/);
+  assert.doesNotMatch(html, /<h2>Tech Fest<\/h2>/);
+
+  const api = await (await fetch(`${base}/api/events?q=LAB`)).json();
+  assert.deepEqual(api.map((event) => event.id), [2, 3]);
+
+  const none = await (await fetch(`${base}/?q=cricket`)).text();
+  assert.match(none, /No events match/);
+});
