@@ -127,6 +127,34 @@ function createApp() {
     res.redirect(`/?registered=${event.id}`);
   });
 
+  // JSON API: the same data as the home page, for other programs.
+  function toJson(event) {
+    return {
+      id: event.id,
+      title: event.title,
+      category: event.category,
+      date: event.date,
+      venue: event.venue,
+      capacity: event.capacity,
+      registered: event.participants.length,
+      seatsLeft: event.capacity - event.participants.length
+    };
+  }
+
+  app.get('/api/events', (req, res) => {
+    res.json(events.map(toJson));
+  });
+
+  app.get('/api/events/:id', (req, res) => {
+    const event = findEvent(req.params.id);
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    res.json(toJson(event));
+  });
+
   return app;
 }
 
