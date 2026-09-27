@@ -162,6 +162,11 @@ function eventCard(event) {
       <div class="bar"><span style="width: ${percent}%"></span></div>
       <p>👥 ${registered} / ${event.capacity} registered ·
         <span class="seats">${seatsLeft} seats left</span></p>
+      <div class="actions">
+        ${seatsLeft > 0
+    ? `<a class="button" href="/register/${event.id}">Register</a>`
+    : '<span class="button disabled">Registration Full</span>'}
+      </div>
     </article>`;
 }
 
@@ -175,4 +180,48 @@ function homePage({ events, commit }) {
   return layout({ title: 'EventEase - Upcoming Events', body, commit });
 }
 
-module.exports = { escapeHtml, homePage };
+function registerPage({ event, commit, error = '', values = {} }) {
+  const errorBox = error
+    ? `<div class="notice error">${escapeHtml(error)}</div>`
+    : '';
+
+  const body = `
+    <section class="card form-card">
+      <span class="tag">${escapeHtml(event.category)}</span>
+      <h1>Register for ${escapeHtml(event.title)}</h1>
+      <p>📅 ${escapeHtml(event.date)} · 📍 ${escapeHtml(event.venue)}</p>
+      <p class="muted">${event.capacity - event.participants.length} seats left</p>
+      ${errorBox}
+      <form method="POST" action="/events/${event.id}/register">
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name" maxlength="60" required
+          value="${escapeHtml(values.name || '')}">
+
+        <label for="email">College email</label>
+        <input type="email" id="email" name="email" maxlength="100" required
+          value="${escapeHtml(values.email || '')}">
+
+        <div class="actions">
+          <button class="button" type="submit">Register Now</button>
+          <a class="button secondary" href="/">Back to events</a>
+        </div>
+      </form>
+    </section>`;
+
+  return layout({ title: `Register - ${event.title}`, body, commit });
+}
+
+function messagePage({ title, message, commit }) {
+  const body = `
+    <section class="card form-card">
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(message)}</p>
+      <div class="actions">
+        <a class="button" href="/">Back to events</a>
+      </div>
+    </section>`;
+
+  return layout({ title: `EventEase - ${title}`, body, commit });
+}
+
+module.exports = { escapeHtml, homePage, registerPage, messagePage };
