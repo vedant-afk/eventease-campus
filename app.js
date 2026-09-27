@@ -42,12 +42,33 @@ function createApp() {
   }
 
   // Home page: list every event with its live registration count.
+  // Search: keep events whose title, category or venue contains the text.
+  function searchEvents(query) {
+    const text = String(query || '').trim().toLowerCase();
+
+    if (!text) {
+      return events;
+    }
+
+    return events.filter((event) =>
+      [event.title, event.category, event.venue]
+        .some((field) => field.toLowerCase().includes(text))
+    );
+  }
+
   // After a successful registration we arrive at /?registered=<eventId>
   // and show a green "Registration successful" message.
+  // /?q=workshop shows only the events that match the search.
   app.get('/', (req, res) => {
     const justRegistered = findEvent(req.query.registered);
+    const query = String(req.query.q || '').trim();
 
-    res.send(views.homePage({ events, justRegistered, commit: getCommitId() }));
+    res.send(views.homePage({
+      events: searchEvents(query),
+      query,
+      justRegistered,
+      commit: getCommitId()
+    }));
   });
 
   // Participants page for one event, e.g. /events/1
@@ -141,8 +162,9 @@ function createApp() {
     };
   }
 
+  // /api/events?q=tech works too
   app.get('/api/events', (req, res) => {
-    res.json(events.map(toJson));
+    res.json(searchEvents(req.query.q).map(toJson));
   });
 
   app.get('/api/events/:id', (req, res) => {

@@ -99,6 +99,8 @@ const styles = `
   .notice.success { background: var(--success-bg); color: var(--success-text); }
   .notice.error { background: var(--error-bg); color: var(--error-text); }
   .form-card { max-width: 520px; margin: 0 auto; }
+  .search { display: flex; gap: 10px; margin: 0 0 22px; }
+  .search input { flex: 1; }
   label { display: block; font-weight: 600; margin: 14px 0 6px; }
   input[type="text"], input[type="email"], input[type="search"] {
     width: 100%;
@@ -178,8 +180,20 @@ function maskEmail(email) {
   return `${user.slice(0, 2)}${'*'.repeat(Math.max(user.length - 2, 1))}@${domain}`;
 }
 
-function homePage({ events, commit, justRegistered }) {
-  const cards = events.map(eventCard).join('');
+function searchForm(query) {
+  return `
+    <form class="search" method="GET" action="/">
+      <input type="search" name="q" placeholder="Search by event, category or venue"
+        value="${escapeHtml(query)}" aria-label="Search events">
+      <button class="button" type="submit">Search</button>
+      ${query ? '<a class="button secondary" href="/">Clear</a>' : ''}
+    </form>`;
+}
+
+function homePage({ events, commit, justRegistered, query = '' }) {
+  const cards = events.length
+    ? events.map(eventCard).join('')
+    : `<p class="muted">No events match "${escapeHtml(query)}".</p>`;
 
   const successBox = justRegistered
     ? `<div class="notice success">✅ Registration successful! You are registered for
@@ -190,6 +204,7 @@ function homePage({ events, commit, justRegistered }) {
   const body = `
     ${successBox}
     <h1>Upcoming Events</h1>
+    ${searchForm(query)}
     <section class="events">${cards}</section>`;
 
   return layout({ title: 'EventEase - Upcoming Events', body, commit });

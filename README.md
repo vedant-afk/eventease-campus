@@ -18,6 +18,7 @@ containerises and deploys the app to **Render** automatically.
   - email must be valid
   - the same email cannot register twice for one event
   - a full event accepts no more registrations
+- Search box to filter events by title, category or venue (`/?q=workshop`)
 - "Registration successful" message after signing up
 - Participants page for each event (emails are partly hidden)
 - JSON API: `GET /api/events` and `GET /api/events/:id`
@@ -44,7 +45,7 @@ containerises and deploys the app to **Render** automatically.
 | GET | `/register/:id` | Registration form for one event |
 | POST | `/events/:id/register` | Saves a registration (validates input) |
 | GET | `/events/:id` | Participants of one event |
-| GET | `/api/events` | All events as JSON |
+| GET | `/api/events` | All events as JSON (`?q=` filters them) |
 | GET | `/api/events/:id` | One event as JSON |
 | GET | `/health` | Health check used by Render and the pipeline |
 
