@@ -160,6 +160,11 @@ function createApp() {
     res.json({ status: 'ok', commit: getCommitId() });
   });
 
+  // Anything else: friendly 404 page.
+  app.use((req, res) => {
+    sendMessage(res, 404, 'Page not found', 'The page you asked for does not exist.');
+  });
+
   return app;
 }
 
