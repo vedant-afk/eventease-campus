@@ -166,14 +166,28 @@ function eventCard(event) {
         ${seatsLeft > 0
     ? `<a class="button" href="/register/${event.id}">Register</a>`
     : '<span class="button disabled">Registration Full</span>'}
+        <a class="button secondary" href="/events/${event.id}">View participants</a>
       </div>
     </article>`;
 }
 
-function homePage({ events, commit }) {
+// Hide most of an email address on public pages: sh*****@example.com
+function maskEmail(email) {
+  const [user, domain] = email.split('@');
+  return `${user.slice(0, 2)}${'*'.repeat(Math.max(user.length - 2, 1))}@${domain}`;
+}
+
+function homePage({ events, commit, justRegistered }) {
   const cards = events.map(eventCard).join('');
 
+  const successBox = justRegistered
+    ? `<div class="notice success">✅ Registration successful! You are registered for
+        <strong>${escapeHtml(justRegistered.title)}</strong> —
+        ${justRegistered.participants.length} / ${justRegistered.capacity} registered.</div>`
+    : '';
+
   const body = `
+    ${successBox}
     <h1>Upcoming Events</h1>
     <section class="events">${cards}</section>`;
 
@@ -211,6 +225,38 @@ function registerPage({ event, commit, error = '', values = {} }) {
   return layout({ title: `Register - ${event.title}`, body, commit });
 }
 
+function participantsPage({ event, commit }) {
+  const rows = event.participants.map((participant, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(participant.name)}</td>
+          <td>${escapeHtml(maskEmail(participant.email))}</td>
+        </tr>`).join('');
+
+  const table = event.participants.length
+    ? `<table>
+        <thead><tr><th>#</th><th>Name</th><th>Email</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+    : '<p class="muted">No registrations yet. Be the first!</p>';
+
+  const body = `
+    <section class="card">
+      <span class="tag">${escapeHtml(event.category)}</span>
+      <h1>${escapeHtml(event.title)} — Participants</h1>
+      <p>📅 ${escapeHtml(event.date)} · 📍 ${escapeHtml(event.venue)}</p>
+      <p class="seats">👥 ${event.participants.length} / ${event.capacity} registered ·
+        ${event.capacity - event.participants.length} seats left</p>
+      ${table}
+      <div class="actions">
+        <a class="button" href="/register/${event.id}">Register</a>
+        <a class="button secondary" href="/">Back to events</a>
+      </div>
+    </section>`;
+
+  return layout({ title: `Participants - ${event.title}`, body, commit });
+}
+
 function messagePage({ title, message, commit }) {
   const body = `
     <section class="card form-card">
@@ -224,4 +270,11 @@ function messagePage({ title, message, commit }) {
   return layout({ title: `EventEase - ${title}`, body, commit });
 }
 
-module.exports = { escapeHtml, homePage, registerPage, messagePage };
+module.exports = {
+  escapeHtml,
+  maskEmail,
+  homePage,
+  registerPage,
+  participantsPage,
+  messagePage
+};

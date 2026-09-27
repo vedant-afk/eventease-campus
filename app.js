@@ -42,8 +42,23 @@ function createApp() {
   }
 
   // Home page: list every event with its live registration count.
+  // After a successful registration we arrive at /?registered=<eventId>
+  // and show a green "Registration successful" message.
   app.get('/', (req, res) => {
-    res.send(views.homePage({ events, commit: getCommitId() }));
+    const justRegistered = findEvent(req.query.registered);
+
+    res.send(views.homePage({ events, justRegistered, commit: getCommitId() }));
+  });
+
+  // Participants page for one event, e.g. /events/1
+  app.get('/events/:id', (req, res) => {
+    const event = findEvent(req.params.id);
+
+    if (!event) {
+      return sendMessage(res, 404, 'Event not found', 'There is no event with that ID.');
+    }
+
+    res.send(views.participantsPage({ event, commit: getCommitId() }));
   });
 
   // Registration form for one event, e.g. /register/1
@@ -107,8 +122,9 @@ function createApp() {
       registeredAt: new Date().toISOString()
     });
 
-    // Post/Redirect/Get: send the browser back to the home page.
-    res.redirect('/');
+    // Post/Redirect/Get: send the browser back to the home page,
+    // which then shows the success message and the new count.
+    res.redirect(`/?registered=${event.id}`);
   });
 
   return app;
