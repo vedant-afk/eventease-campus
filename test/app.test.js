@@ -5,19 +5,20 @@ const assert = require('node:assert/strict');
 const { createApp } = require('../app');
 
 // Start a fresh copy of EventEase (with fresh data) on a random free port.
-async function startServer() {
+// t.after() closes the server when the test ends - even if the test FAILS -
+// so a failing test stops the run with an error instead of hanging it.
+async function startServer(t) {
   const app = createApp();
   const server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
 
-  return {
-    base: `http://127.0.0.1:${server.address().port}`,
-    close: () => new Promise((resolve) => server.close(resolve))
-  };
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  return `http://127.0.0.1:${server.address().port}`;
 }
 
-test('GET /health returns status ok', async () => {
-  const { base, close } = await startServer();
+test('GET /health returns status ok', async (t) => {
+  const base = await startServer(t);
 
   const response = await fetch(`${base}/health`);
   const data = await response.json();
@@ -25,12 +26,10 @@ test('GET /health returns status ok', async () => {
   assert.equal(response.status, 200);
   assert.equal(data.status, 'ok');
   assert.equal(data.commit, 'local');
-
-  await close();
 });
 
-test('home page lists every event and shows the running commit', async () => {
-  const { base, close } = await startServer();
+test('home page lists every event and shows the running commit', async (t) => {
+  const base = await startServer(t);
 
   const response = await fetch(`${base}/`);
   const html = await response.text();
@@ -40,12 +39,10 @@ test('home page lists every event and shows the running commit', async () => {
   assert.match(html, /Photography Workshop/);
   assert.match(html, /AI &#38; Robotics Meetup/);
   assert.match(html, /Running commit: <code>local<\/code>/);
-
-  await close();
 });
 
-test('GET /api/events returns JSON with seats left', async () => {
-  const { base, close } = await startServer();
+test('GET /api/events returns JSON with seats left', async (t) => {
+  const base = await startServer(t);
 
   const response = await fetch(`${base}/api/events`);
   const events = await response.json();
@@ -57,20 +54,16 @@ test('GET /api/events returns JSON with seats left', async () => {
     ['capacity', 'category', 'date', 'id', 'registered', 'seatsLeft', 'title', 'venue']
   );
   assert.equal(events[0].seatsLeft, events[0].capacity);
-
-  await close();
 });
 
-test('unknown event returns 404', async () => {
-  const { base, close } = await startServer();
+test('unknown event returns 404', async (t) => {
+  const base = await startServer(t);
 
   const page = await fetch(`${base}/register/999`);
   const api = await fetch(`${base}/api/events/999`);
 
   assert.equal(page.status, 404);
   assert.equal(api.status, 404);
-
-  await close();
 });
 
 // Submit the registration form the same way a browser does.
@@ -87,8 +80,8 @@ async function getEvent(base, eventId) {
   return response.json();
 }
 
-test('valid registration is saved and increases the count', async () => {
-  const { base, close } = await startServer();
+test('valid registration is saved and increases the count', async (t) => {
+  const base = await startServer(t);
 
   const response = await register(base, 1, {
     name: 'Shreeya Patil',
@@ -104,12 +97,10 @@ test('valid registration is saved and increases the count', async () => {
 
   const participants = await (await fetch(`${base}/events/1`)).text();
   assert.match(participants, /Shreeya Patil/);
-
-  await close();
 });
 
-test('invalid name or email is rejected with 400', async () => {
-  const { base, close } = await startServer();
+test('invalid name or email is rejected with 400', async (t) => {
+  const base = await startServer(t);
 
   const noName = await register(base, 1, { name: '', email: 'a@example.com' });
   const badEmail = await register(base, 1, { name: 'Test', email: 'wrong-email' });
@@ -120,12 +111,10 @@ test('invalid name or email is rejected with 400', async () => {
 
   const event = await getEvent(base, 1);
   assert.equal(event.registered, 0);
-
-  await close();
 });
 
-test('the same email cannot register twice for one event', async () => {
-  const { base, close } = await startServer();
+test('the same email cannot register twice for one event', async (t) => {
+  const base = await startServer(t);
 
   const first = await register(base, 3, { name: 'Aarav', email: 'aarav@example.com' });
   const again = await register(base, 3, { name: 'Aarav', email: 'AARAV@example.com' });
@@ -134,12 +123,10 @@ test('the same email cannot register twice for one event', async () => {
   assert.equal(again.status, 400);
   assert.match(await again.text(), /already registered/);
   assert.equal((await getEvent(base, 3)).registered, 1);
-
-  await close();
 });
 
-test('a full event accepts no more registrations', async () => {
-  const { base, close } = await startServer();
+test('a full event accepts no more registrations', async (t) => {
+  const base = await startServer(t);
   const { capacity } = await getEvent(base, 2);
 
   for (let i = 1; i <= capacity; i += 1) {
@@ -159,18 +146,14 @@ test('a full event accepts no more registrations', async () => {
 
   const home = await (await fetch(`${base}/`)).text();
   assert.match(home, /Registration Full/);
-
-  await close();
 });
 
-test('HTML typed into the form is shown as text, not run', async () => {
-  const { base, close } = await startServer();
+test('HTML typed into the form is shown as text, not run', async (t) => {
+  const base = await startServer(t);
 
   await register(base, 1, { name: '<script>alert(1)</script>', email: 'x@example.com' });
   const participants = await (await fetch(`${base}/events/1`)).text();
 
   assert.doesNotMatch(participants, /<script>alert/);
   assert.match(participants, /&#60;script&#62;/);
-
-  await close();
 });
