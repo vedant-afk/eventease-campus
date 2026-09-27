@@ -155,6 +155,11 @@ function createApp() {
     res.json(toJson(event));
   });
 
+  // Health check: Render and the pipeline call this to ask "are you alive?"
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', commit: getCommitId() });
+  });
+
   return app;
 }
 

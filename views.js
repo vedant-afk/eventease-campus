@@ -142,6 +142,7 @@ function layout({ title, body, commit }) {
   </main>
   <footer class="site-footer">
     <span>Running commit: <code>${escapeHtml(commit)}</code></span>
+    <span><a href="/api/events">JSON API</a> · <a href="/health">Health</a></span>
   </footer>
 </body>
 </html>`;
