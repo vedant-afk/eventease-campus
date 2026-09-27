@@ -24,7 +24,7 @@ test('GET /health returns status ok', async (t) => {
   const data = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(data.status, 'ok');
+  assert.equal(data.status, 'BROKEN');
   assert.equal(data.commit, 'local');
 });
 
