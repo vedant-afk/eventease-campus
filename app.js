@@ -89,6 +89,18 @@ function createApp() {
       return rejectWith('Please enter a valid email address, e.g. student@college.edu');
     }
 
+    if (event.participants.length >= event.capacity) {
+      return sendMessage(res, 400, 'Registration is full', `All ${event.capacity} seats for ${event.title} are taken.`);
+    }
+
+    const alreadyRegistered = event.participants.some(
+      (participant) => participant.email === email
+    );
+
+    if (alreadyRegistered) {
+      return rejectWith('This email is already registered for this event.');
+    }
+
     event.participants.push({
       name,
       email,
