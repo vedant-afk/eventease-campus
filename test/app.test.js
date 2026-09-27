@@ -72,3 +72,105 @@ test('unknown event returns 404', async () => {
 
   await close();
 });
+
+// Submit the registration form the same way a browser does.
+function register(base, eventId, fields) {
+  return fetch(`${base}/events/${eventId}/register`, {
+    method: 'POST',
+    body: new URLSearchParams(fields),
+    redirect: 'manual'
+  });
+}
+
+async function getEvent(base, eventId) {
+  const response = await fetch(`${base}/api/events/${eventId}`);
+  return response.json();
+}
+
+test('valid registration is saved and increases the count', async () => {
+  const { base, close } = await startServer();
+
+  const response = await register(base, 1, {
+    name: 'Shreeya Patil',
+    email: 'shreeya@example.com'
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/?registered=1');
+
+  const event = await getEvent(base, 1);
+  assert.equal(event.registered, 1);
+  assert.equal(event.seatsLeft, 99);
+
+  const participants = await (await fetch(`${base}/events/1`)).text();
+  assert.match(participants, /Shreeya Patil/);
+
+  await close();
+});
+
+test('invalid name or email is rejected with 400', async () => {
+  const { base, close } = await startServer();
+
+  const noName = await register(base, 1, { name: '', email: 'a@example.com' });
+  const badEmail = await register(base, 1, { name: 'Test', email: 'wrong-email' });
+
+  assert.equal(noName.status, 400);
+  assert.equal(badEmail.status, 400);
+  assert.match(await badEmail.text(), /valid email address/);
+
+  const event = await getEvent(base, 1);
+  assert.equal(event.registered, 0);
+
+  await close();
+});
+
+test('the same email cannot register twice for one event', async () => {
+  const { base, close } = await startServer();
+
+  const first = await register(base, 3, { name: 'Aarav', email: 'aarav@example.com' });
+  const again = await register(base, 3, { name: 'Aarav', email: 'AARAV@example.com' });
+
+  assert.equal(first.status, 302);
+  assert.equal(again.status, 400);
+  assert.match(await again.text(), /already registered/);
+  assert.equal((await getEvent(base, 3)).registered, 1);
+
+  await close();
+});
+
+test('a full event accepts no more registrations', async () => {
+  const { base, close } = await startServer();
+  const { capacity } = await getEvent(base, 2);
+
+  for (let i = 1; i <= capacity; i += 1) {
+    const response = await register(base, 2, {
+      name: `Student ${i}`,
+      email: `student${i}@example.com`
+    });
+    assert.equal(response.status, 302);
+  }
+
+  const extra = await register(base, 2, { name: 'Late', email: 'late@example.com' });
+  assert.equal(extra.status, 400);
+
+  const event = await getEvent(base, 2);
+  assert.equal(event.registered, capacity);
+  assert.equal(event.seatsLeft, 0);
+
+  const home = await (await fetch(`${base}/`)).text();
+  assert.match(home, /Registration Full/);
+
+  await close();
+});
+
+test('HTML typed into the form is shown as text, not run', async () => {
+  const { base, close } = await startServer();
+
+  await register(base, 1, { name: '<script>alert(1)</script>', email: 'x@example.com' });
+  const participants = await (await fetch(`${base}/events/1`)).text();
+
+  assert.doesNotMatch(participants, /<script>alert/);
+  assert.match(participants, /&#60;script&#62;/);
+
+  await close();
+});
