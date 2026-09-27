@@ -15,6 +15,11 @@ function getCommitId() {
   return commit.slice(0, 7);
 }
 
+// Simple email check: something@something.something (no spaces).
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // createApp() builds a fresh app with its own copy of the event data.
 // server.js calls it once; the tests call it for every test so that
 // one test's registrations never affect another test.
@@ -54,6 +59,44 @@ function createApp() {
     }
 
     res.send(views.registerPage({ event, commit: getCommitId() }));
+  });
+
+  // The registration form posts here. This route CHANGES data:
+  // it validates the input and then saves the participant.
+  app.post('/events/:id/register', (req, res) => {
+    const event = findEvent(req.params.id);
+
+    if (!event) {
+      return sendMessage(res, 404, 'Event not found', 'There is no event with that ID.');
+    }
+
+    const body = req.body || {};
+    const name = String(body.name || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+
+    // Send the form back with an error message and HTTP 400 (Bad Request).
+    function rejectWith(error) {
+      res.status(400).send(
+        views.registerPage({ event, commit: getCommitId(), error, values: { name, email } })
+      );
+    }
+
+    if (!name || name.length > 60) {
+      return rejectWith('Please enter your name (up to 60 characters).');
+    }
+
+    if (!isValidEmail(email)) {
+      return rejectWith('Please enter a valid email address, e.g. student@college.edu');
+    }
+
+    event.participants.push({
+      name,
+      email,
+      registeredAt: new Date().toISOString()
+    });
+
+    // Post/Redirect/Get: send the browser back to the home page.
+    res.redirect('/');
   });
 
   return app;
